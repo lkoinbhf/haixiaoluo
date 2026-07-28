@@ -9,19 +9,36 @@ export default async function LogsPage() {
 
   return (
     <main style={{ 
-      maxWidth: '800px', 
+      maxWidth: '720px', 
       margin: '0 auto', 
-      padding: '60px 20px',
+      padding: '80px 24px 60px',
       fontFamily: 'system-ui, -apple-system, sans-serif',
-      lineHeight: 1.6
+      lineHeight: 1.7,
+      color: '#222'
     }}>
-      <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>工作日志</h1>
-      <p style={{ color: '#666', marginBottom: '40px' }}>
-        <a href="/" style={{ color: '#0070f3' }}>← 返回首页</a>
-      </p>
+      <header style={{ marginBottom: '48px' }}>
+        <a 
+          href="/" 
+          style={{ 
+            color: '#0066cc', 
+            textDecoration: 'none',
+            fontSize: '0.95rem'
+          }}
+        >
+          ← 返回首页
+        </a>
+        <h1 style={{ 
+          fontSize: '2rem', 
+          fontWeight: 700, 
+          marginTop: '20px',
+          marginBottom: '8px'
+        }}>
+          工作日志
+        </h1>
+      </header>
 
       {error && (
-        <div style={{ color: 'red', marginBottom: '20px' }}>
+        <div style={{ color: '#c00', marginBottom: '24px' }}>
           加载失败：{error.message}
         </div>
       )}
@@ -34,19 +51,27 @@ export default async function LogsPage() {
             <article 
               key={log.id} 
               style={{ 
-                marginBottom: '32px', 
-                paddingBottom: '32px', 
+                marginBottom: '40px', 
+                paddingBottom: '40px', 
                 borderBottom: '1px solid #eee' 
               }}
             >
-              <h2 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>
+              <h2 style={{ 
+                fontSize: '1.35rem', 
+                fontWeight: 600, 
+                marginBottom: '8px' 
+              }}>
                 {log.title}
               </h2>
               <time style={{ fontSize: '0.9rem', color: '#888' }}>
                 {new Date(log.created_at).toLocaleString('zh-CN')}
               </time>
               {log.content && (
-                <div style={{ marginTop: '12px', whiteSpace: 'pre-wrap' }}>
+                <div style={{ 
+                  marginTop: '16px', 
+                  whiteSpace: 'pre-wrap',
+                  color: '#444'
+                }}>
                   {log.content}
                 </div>
               )}
