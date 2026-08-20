@@ -1,83 +1,160 @@
+import HomeNav from './components/HomeNav'
+
 export default function HomePage() {
   return (
-    <main style={{ 
-      maxWidth: '720px', 
-      margin: '0 auto', 
-      padding: '80px 24px 60px',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      lineHeight: 1.7,
-      color: '#222'
-    }}>
-      <header style={{ marginBottom: '64px' }}>
-        <h1 style={{ 
-          fontSize: '2.75rem', 
-          fontWeight: 700, 
-          marginBottom: '12px',
-          letterSpacing: '-0.02em'
-        }}>
-          海小螺
-        </h1>
-        <p style={{ fontSize: '1.15rem', color: '#666' }}>
-          一个正在进行中的项目
-        </p>
+    <main
+      style={{
+        minHeight: '100vh',
+        background:
+          'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+        color: '#fff',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}
+    >
+      {/* 顶部导航 */}
+      <header
+        style={{
+          maxWidth: '1000px',
+          margin: '0 auto',
+          padding: '20px 24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>工作后台</div>
+        <HomeNav />
       </header>
 
-      <section style={{ marginBottom: '48px' }}>
-        <h2 style={{ 
-          fontSize: '1.35rem', 
-          fontWeight: 600, 
-          marginBottom: '12px' 
-        }}>
-          关于项目
-        </h2>
-        <p style={{ color: '#444' }}>
-          这里之后会放「海小螺」的详细介绍。目前网站刚刚搭建完成，内容和功能会逐步完善。
-        </p>
-      </section>
+      {/* 主视觉区 */}
+      <section
+        style={{
+          maxWidth: '1000px',
+          margin: '0 auto',
+          padding: '60px 24px 40px',
+          display: 'flex',
+          gap: '40px',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ flex: '1 1 320px' }}>
+          <h1
+            style={{
+              fontSize: '2.8rem',
+              fontWeight: 700,
+              lineHeight: 1.2,
+              marginBottom: '16px',
+            }}
+          >
+            海小螺集成工作站
+          </h1>
+          <p
+            style={{
+              fontSize: '1.15rem',
+              opacity: 0.85,
+              lineHeight: 1.7,
+              marginBottom: '28px',
+              maxWidth: '480px',
+            }}
+          >
+            让生意更简单
+          </p>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <a
+              href="/account/manage"
+              style={{
+                display: 'inline-block',
+                padding: '12px 20px',
+                borderRadius: '10px',
+                background: '#e85d4c',
+                color: '#fff',
+                textDecoration: 'none',
+                fontWeight: 600,
+              }}
+            >
+              进入管理
+            </a>
+          </div>
+        </div>
 
-      <section style={{ marginBottom: '64px' }}>
-        <h2 style={{ 
-          fontSize: '1.35rem', 
-          fontWeight: 600, 
-          marginBottom: '12px' 
-        }}>
-          工作日志
-        </h2>
-        <p style={{ color: '#444', marginBottom: '16px' }}>
-          我会在这里记录项目相关的工作进展。
-        </p>
-        <a 
-          href="/logs" 
-          style={{ 
-            color: '#0066cc', 
-            textDecoration: 'none',
-            fontWeight: 500
+        {/* 右侧图文卡片（先用占位块，以后可换成真实图片） */}
+        <div
+          style={{
+            flex: '1 1 300px',
+            minHeight: '260px',
+            borderRadius: '16px',
+            background:
+              'linear-gradient(160deg, rgba(255,255,255,0.14), rgba(255,255,255,0.05))',
+            border: '1px solid rgba(255,255,255,0.18)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            textAlign: 'center',
           }}
         >
-          查看工作日志 →
-        </a>
+          <div>
+            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🐚</div>
+            <div style={{ opacity: 0.9, lineHeight: 1.6 }}>
+              这里以后可以放项目配图
+              <br />
+              或一张你喜欢的封面图
+            </div>
+          </div>
+        </div>
       </section>
 
-      <footer style={{ 
-        borderTop: '1px solid #eee', 
-        paddingTop: '24px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        fontSize: '0.9rem',
-        color: '#999'
-      }}>
-        <span>© {new Date().getFullYear()} 海小螺</span>
-        <a 
-          href="/admin" 
-          style={{ 
-            color: '#aaa', 
-            textDecoration: 'none',
-            fontSize: '0.85rem'
-          }}
-        >
-          管理
-        </a>
+      {/* 介绍区块 */}
+      <section
+        style={{
+          maxWidth: '1000px',
+          margin: '0 auto',
+          padding: '20px 24px 80px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '16px',
+        }}
+      >
+        {[
+          {
+            title: '项目介绍',
+            text: '海小螺是什么、想解决什么问题，可以写在这里。',
+          },
+          {
+            title: '当前进展',
+            text: '网站、日志系统已经搭起来，内容和功能会持续完善。',
+          },
+          {
+            title: '工作日志',
+            text: '把日常推进记录下来，方便回顾，也方便信任的人协作。',
+          },
+        ].map((item) => (
+          <div
+            key={item.title}
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '14px',
+              padding: '20px',
+            }}
+          >
+            <h2 style={{ fontSize: '1.15rem', marginBottom: '10px' }}>{item.title}</h2>
+            <p style={{ opacity: 0.82, lineHeight: 1.6, margin: 0 }}>{item.text}</p>
+          </div>
+        ))}
+      </section>
+
+      <footer
+        style={{
+          borderTop: '1px solid rgba(255,255,255,0.12)',
+          padding: '20px 24px',
+          textAlign: 'center',
+          fontSize: '0.85rem',
+          opacity: 0.7,
+        }}
+      >
+        © {new Date().getFullYear()} 海小螺
       </footer>
     </main>
   )
