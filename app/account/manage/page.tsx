@@ -66,6 +66,11 @@ export default function AccountManagePage() {
       desc: '添加、编辑、删除工作日志',
       href: '/tools/logs/editor',
     },
+    {
+      title: '广告户',
+      desc: '查询并导出广告户资料',
+      href: '/tools/ad-accounts',
+    },
   ]
 
   return (
