@@ -20,18 +20,45 @@ type AdAccount = {
 const PORTS = ['泰国', '日本', '巴西', '中国', '马来', '越南']
 const STATUSES = ['待提交', '审核中', '成功', '失败']
 
+function todayDateString() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export default function AdAccountsPage() {
   const router = useRouter()
   const [ready, setReady] = useState(false)
   const [rows, setRows] = useState<AdAccount[]>([])
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [updating, setUpdating] = useState(false)
+  const [confirmBulk, setConfirmBulk] = useState(false)
 
   const [keyword, setKeyword] = useState('')
   const [port, setPort] = useState('')
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState('待提交')
   const [client, setClient] = useState('')
   const [agency, setAgency] = useState('')
+  const [bulkStatus, setBulkStatus] = useState('审核中')
+
+  const loadRows = async () => {
+    setLoading(true)
+    setError('')
+    const { data, error } = await supabase
+      .from('ad_accounts')
+      .select(
+        'id, ad_account_id, ad_account_name, client_name, agency_name, port, opened_on, whitelist_submitted, whitelist_submitted_on, whitelist_status'
+      )
+      .order('opened_on', { ascending: false })
+
+    if (error) setError(error.message)
+    setRows((data as AdAccount[]) || [])
+    setLoading(false)
+  }
 
   useEffect(() => {
     const init = async () => {
@@ -47,21 +74,7 @@ export default function AdAccountsPage() {
 
   useEffect(() => {
     if (!ready) return
-    const load = async () => {
-      setLoading(true)
-      setError('')
-      const { data, error } = await supabase
-        .from('ad_accounts')
-        .select(
-          'id, ad_account_id, ad_account_name, client_name, agency_name, port, opened_on, whitelist_submitted, whitelist_submitted_on, whitelist_status'
-        )
-        .order('opened_on', { ascending: false })
-
-      if (error) setError(error.message)
-      setRows((data as AdAccount[]) || [])
-      setLoading(false)
-    }
-    load()
+    loadRows()
   }, [ready])
 
   const clientOptions = useMemo(
@@ -74,6 +87,21 @@ export default function AdAccountsPage() {
       Array.from(new Set(rows.map((r) => r.agency_name).filter(Boolean) as string[])).sort(),
     [rows]
   )
+
+  const bulkStatusOptions = useMemo(() => {
+    if (status === '待提交') return ['审核中']
+    if (status === '审核中') return ['成功', '失败']
+    if (status === '失败') return ['待提交']
+    return []
+  }, [status])
+
+  useEffect(() => {
+    if (bulkStatusOptions.length === 0) return
+    if (!bulkStatusOptions.includes(bulkStatus)) {
+      setBulkStatus(bulkStatusOptions[0])
+    }
+    setConfirmBulk(false)
+  }, [status, bulkStatusOptions])
 
   const filtered = useMemo(() => {
     const tokens = keyword
@@ -89,12 +117,10 @@ export default function AdAccountsPage() {
 
       if (tokens.length === 0) return true
 
-      // 多个关键词：只按广告户 ID 批量匹配
       if (tokens.length > 1) {
         return tokens.includes(row.ad_account_id)
       }
 
-      // 单个关键词：仍可搜 ID / 名字 / 客户 / 代理
       const q = tokens[0].toLowerCase()
       const blob = [
         row.ad_account_id,
@@ -148,6 +174,90 @@ export default function AdAccountsPage() {
     URL.revokeObjectURL(url)
   }
 
+  const requestBulkStatusUpdate = () => {
+    if (filtered.length === 0 || !bulkStatus) {
+      setError('当前没有可更新的记录')
+      return
+    }
+    setError('')
+    setMessage('')
+    setConfirmBulk(true)
+  }
+
+  const handleBulkStatusUpdate = async () => {
+    if (filtered.length === 0 || !bulkStatus) return
+
+    setConfirmBulk(false)
+    setUpdating(true)
+    setMessage('')
+    setError('')
+
+    const today = todayDateString()
+    const now = new Date().toISOString()
+
+    // 需要写入开白提交日期的：原状态是待提交，且目标是审核中
+    const needSubmitDateIds = filtered
+      .filter((row) => row.whitelist_status === '待提交' && bulkStatus === '审核中')
+      .map((row) => row.id)
+
+    // 其余记录：只改状态
+    const normalIds = filtered
+      .filter((row) => !(row.whitelist_status === '待提交' && bulkStatus === '审核中'))
+      .map((row) => row.id)
+
+    let successCount = 0
+    let failCount = 0
+    let firstError = ''
+
+    if (needSubmitDateIds.length > 0) {
+      const { data, error } = await supabase
+        .from('ad_accounts')
+        .update({
+          whitelist_status: bulkStatus,
+          whitelist_submitted: true,
+          whitelist_submitted_on: today,
+          updated_at: now,
+        })
+        .in('id', needSubmitDateIds)
+        .select('id')
+
+      if (error) {
+        failCount += needSubmitDateIds.length
+        firstError = error.message
+      } else {
+        successCount += data?.length || 0
+      }
+    }
+
+    if (normalIds.length > 0) {
+      const { data, error } = await supabase
+        .from('ad_accounts')
+        .update({
+          whitelist_status: bulkStatus,
+          updated_at: now,
+        })
+        .in('id', normalIds)
+        .select('id')
+
+      if (error) {
+        failCount += normalIds.length
+        if (!firstError) firstError = error.message
+      } else {
+        successCount += data?.length || 0
+      }
+    }
+
+    setStatus(bulkStatus)
+    await loadRows()
+    setUpdating(false)
+
+    if (failCount === 0) {
+      setMessage(`已成功更新 ${successCount} 条记录为「${bulkStatus}」`)
+    } else {
+      setError(`成功 ${successCount} 条，失败约 ${failCount} 条。${firstError || ''}`)
+    }
+  }
+
   if (!ready) {
     return (
       <main style={pageStyle}>
@@ -174,9 +284,14 @@ export default function AdAccountsPage() {
             <h1 style={{ margin: '0 0 6px', fontSize: '1.8rem' }}>广告户</h1>
             <p style={{ margin: 0, opacity: 0.75 }}>查询与导出广告户基础资料</p>
           </div>
-          <a href="/account/manage" style={ghostBtn}>
-            返回控制台
-          </a>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <a href="/tools/ad-accounts/import" style={ghostBtn}>
+              导入
+            </a>
+            <a href="/account/manage" style={ghostBtn}>
+              返回控制台
+            </a>
+          </div>
         </div>
 
         <input
@@ -196,29 +311,23 @@ export default function AdAccountsPage() {
             display: 'flex',
             gap: '10px',
             flexWrap: 'wrap',
-            marginBottom: '16px',
+            marginBottom: '12px',
             alignItems: 'center',
           }}
         >
-          <DarkSelect
-            label="客户"
-            value={client}
-            onChange={setClient}
-            options={clientOptions}
-          />
-          <DarkSelect
-            label="代理"
-            value={agency}
-            onChange={setAgency}
-            options={agencyOptions}
-          />
+          <DarkSelect label="客户" value={client} onChange={setClient} options={clientOptions} />
+          <DarkSelect label="代理" value={agency} onChange={setAgency} options={agencyOptions} />
           <DarkSelect label="端口" value={port} onChange={setPort} options={PORTS} />
           <DarkSelect
             label="开白状态"
             value={status}
-            onChange={setStatus}
+            onChange={(v) => {
+              setStatus(v)
+              setConfirmBulk(false)
+            }}
             options={STATUSES}
           />
+
           <button
             type="button"
             onClick={exportCsv}
@@ -238,7 +347,104 @@ export default function AdAccountsPage() {
           </button>
         </div>
 
-        {error && <p style={{ color: '#ffb4a8' }}>加载失败：{error}</p>}
+        {status && status != '成功' &&(
+          <>
+            <div
+              style={{
+                display: 'flex',
+                gap: '10px',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                marginBottom: '16px',
+                padding: '12px',
+                borderRadius: '12px',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+              }}
+            >
+              <span style={{ opacity: 0.9, fontSize: '0.95rem' }}>
+                批量修改当前结果（{filtered.length} 条）的开白状态为
+              </span>
+              <DarkSelect
+                label="目标状态"
+                value={bulkStatus}
+                onChange={setBulkStatus}
+                options={bulkStatusOptions}
+                hideAllOption
+              />
+              <button
+                type="button"
+                onClick={requestBulkStatusUpdate}
+                disabled={filtered.length === 0 || updating}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.35)',
+                  background: 'rgba(0,0,0,0.25)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  cursor: filtered.length === 0 || updating ? 'not-allowed' : 'pointer',
+                  opacity: filtered.length === 0 || updating ? 0.6 : 1,
+                }}
+              >
+                {updating ? '更新中…' : '一键应用'}
+              </button>
+            </div>
+
+            {confirmBulk && (
+              <div
+                style={{
+                  marginBottom: '16px',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  background: 'rgba(232,93,76,0.15)',
+                  border: '1px solid rgba(232,93,76,0.45)',
+                }}
+              >
+                <p style={{ margin: '0 0 12px' }}>
+                  确定把当前 <strong>{filtered.length}</strong> 条记录的开白状态改为「
+                  {bulkStatus}」吗？
+                </p>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleBulkStatusUpdate}
+                    disabled={updating}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: '#e85d4c',
+                      color: '#fff',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    确认修改
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmBulk(false)}
+                    disabled={updating}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.35)',
+                      background: 'transparent',
+                      color: '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {message && <p style={{ color: '#b8f5c5' }}>{message}</p>}
+        {error && <p style={{ color: '#ffb4a8' }}>{error.startsWith('成功') ? error : `加载/更新失败：${error}`}</p>}
         {loading && <p style={{ opacity: 0.75 }}>读取中…</p>}
         {!loading && filtered.length === 0 && (
           <p style={{ opacity: 0.75 }}>没有符合条件的记录。</p>
@@ -302,13 +508,16 @@ function DarkSelect({
   value,
   onChange,
   options,
+  hideAllOption = false,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   options: string[]
+  hideAllOption?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const list = hideAllOption ? options : ['', ...options]
 
   return (
     <div style={{ position: 'relative', minWidth: '140px' }}>
@@ -325,7 +534,7 @@ function DarkSelect({
           gap: '8px',
         }}
       >
-        <span>{value || `全部${label}`}</span>
+        <span>{value || (hideAllOption ? label : `全部${label}`)}</span>
         <span style={{ opacity: 0.7 }}>{open ? '▲' : '▼'}</span>
       </button>
       {open && (
@@ -345,7 +554,7 @@ function DarkSelect({
             overflowY: 'auto',
           }}
         >
-          {['', ...options].map((opt) => {
+          {list.map((opt) => {
             const active = value === opt
             return (
               <button
