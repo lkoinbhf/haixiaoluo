@@ -1,4 +1,5 @@
 import HomeNav from './components/HomeNav'
+import HomeSignal from './components/HomeSignal'
 
 export default function HomePage() {
   return (
@@ -83,25 +84,15 @@ export default function HomePage() {
           style={{
             flex: '1 1 300px',
             minHeight: '260px',
+            height: '280px',
             borderRadius: '16px',
-            background:
-              'linear-gradient(160deg, rgba(255,255,255,0.14), rgba(255,255,255,0.05))',
+            background: 'rgba(22, 33, 62, 0.9)',
             border: '1px solid rgba(255,255,255,0.18)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '24px',
-            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          <div>
-            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🐚</div>
-            <div style={{ opacity: 0.9, lineHeight: 1.6 }}>
-              这里以后可以放项目配图
-              <br />
-              或一张你喜欢的封面图
-            </div>
-          </div>
+          <HomeSignal />
         </div>
       </section>
 
