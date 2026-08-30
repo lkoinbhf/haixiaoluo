@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -44,6 +44,13 @@ export default function AdAccountsPage() {
   const [client, setClient] = useState('')
   const [agency, setAgency] = useState('')
   const [bulkStatus, setBulkStatus] = useState('审核中')
+  const [applied, setApplied] = useState({
+    keyword: '',
+    port: '',
+    status: '待提交',
+    client: '',
+    agency: '',
+  })
 
   const loadRows = async () => {
     setLoading(true)
@@ -89,11 +96,11 @@ export default function AdAccountsPage() {
   )
 
   const bulkStatusOptions = useMemo(() => {
-    if (status === '待提交') return ['审核中']
-    if (status === '审核中') return ['成功', '失败']
-    if (status === '失败') return ['待提交']
+    if (applied.status === '待提交') return ['审核中']
+    if (applied.status === '审核中') return ['成功', '失败']
+    if (applied.status === '失败') return ['待提交']
     return []
-  }, [status])
+  }, [applied.status])
 
   useEffect(() => {
     if (bulkStatusOptions.length === 0) return
@@ -101,19 +108,19 @@ export default function AdAccountsPage() {
       setBulkStatus(bulkStatusOptions[0])
     }
     setConfirmBulk(false)
-  }, [status, bulkStatusOptions])
+  }, [applied.status, bulkStatusOptions])
 
   const filtered = useMemo(() => {
-    const tokens = keyword
+    const tokens = applied.keyword
       .split(/[,，\s]+/)
       .map((s) => s.trim())
       .filter(Boolean)
 
     return rows.filter((row) => {
-      if (port && row.port !== port) return false
-      if (status && row.whitelist_status !== status) return false
-      if (client && row.client_name !== client) return false
-      if (agency && row.agency_name !== agency) return false
+      if (port && row.port !== applied.port) return false
+      if (status && row.whitelist_status !== applied.status) return false
+      if (client && row.client_name !== applied.client) return false
+      if (agency && row.agency_name !== applied.agency) return false
 
       if (tokens.length === 0) return true
 
@@ -133,7 +140,12 @@ export default function AdAccountsPage() {
         .toLowerCase()
       return blob.includes(q)
     })
-  }, [rows, keyword, port, status, client, agency])
+  }, [rows, applied])
+
+  const applyQuery = () => {
+    setApplied({ keyword, port, status, client, agency })
+    setConfirmBulk(false)
+  }
 
   const exportCsv = () => {
     const header = [
@@ -248,6 +260,7 @@ export default function AdAccountsPage() {
     }
 
     setStatus(bulkStatus)
+      setApplied((prev) => ({ ...prev, status: bulkStatus }))
     await loadRows()
     setUpdating(false)
 
@@ -330,6 +343,22 @@ export default function AdAccountsPage() {
 
           <button
             type="button"
+            onClick={applyQuery}
+            style={{
+              padding: '10px 14px',
+              borderRadius: '8px',
+              border: 'none',
+              background: '#e85d4c',
+              color: '#fff',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            查询
+          </button>
+
+          <button
+            type="button"
             onClick={exportCsv}
             disabled={filtered.length === 0}
             style={{
@@ -347,7 +376,7 @@ export default function AdAccountsPage() {
           </button>
         </div>
 
-        {status && status != '成功' &&(
+        {applied.status && applied.status != '成功' &&(
           <>
             <div
               style={{
@@ -379,8 +408,8 @@ export default function AdAccountsPage() {
                 style={{
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.35)',
-                  background: 'rgba(0,0,0,0.25)',
+                  border: 'none',
+                  background: '#e85d4c',
                   color: '#fff',
                   fontWeight: 600,
                   cursor: filtered.length === 0 || updating ? 'not-allowed' : 'pointer',
@@ -450,8 +479,16 @@ export default function AdAccountsPage() {
           <p style={{ opacity: 0.75 }}>没有符合条件的记录。</p>
         )}
 
-        {!loading && filtered.length > 0 && (
-          <div style={{ overflowX: 'auto' }}>
+{!loading && filtered.length > 0 && (
+          <div
+            style={{
+              overflow: 'auto',
+              maxHeight: '480px',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '12px',
+              background: 'rgba(0,0,0,0.18)',
+            }}
+          >
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.92rem' }}>
               <thead>
                 <tr>
@@ -473,6 +510,10 @@ export default function AdAccountsPage() {
                         padding: '10px 8px',
                         borderBottom: '1px solid rgba(255,255,255,0.2)',
                         whiteSpace: 'nowrap',
+                        position: 'sticky',
+                        top: 0,
+                        background: '#16213e',
+                        zIndex: 1,
                       }}
                     >
                       {h}
@@ -517,10 +558,22 @@ function DarkSelect({
   hideAllOption?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
   const list = hideAllOption ? options : ['', ...options]
 
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
   return (
-    <div style={{ position: 'relative', minWidth: '140px' }}>
+    <div ref={rootRef} style={{ position: 'relative', minWidth: '140px' }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

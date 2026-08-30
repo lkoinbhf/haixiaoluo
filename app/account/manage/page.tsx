@@ -12,6 +12,7 @@ export default function AccountManagePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<SessionUser | null>(null)
+  const [pendingCount, setPendingCount] = useState<number | null>(null)
 
   useEffect(() => {
     const check = async () => {
@@ -22,6 +23,14 @@ export default function AccountManagePage() {
       }
       setUser({ email: data.session.user.email })
       setLoading(false)
+
+      const { count, error } = await supabase
+        .from('ad_accounts')
+        .select('id', { count: 'exact', head: true })
+        .in('whitelist_status', ['待提交', '审核中'])
+
+      if (!error) setPendingCount(count ?? 0)
+      else setPendingCount(0)
     }
     check()
   }, [router])
@@ -50,7 +59,7 @@ export default function AccountManagePage() {
     )
   }
 
-  const cards = [
+  const toolCards = [
     {
       title: '工作日志',
       desc: '查看或管理项目日志',
@@ -66,12 +75,17 @@ export default function AccountManagePage() {
       desc: '添加、编辑、删除工作日志',
       href: '/tools/logs/editor',
     },
-    {
-      title: '广告户',
-      desc: '查询并导出广告户资料',
-      href: '/tools/ad-accounts',
-    },
   ]
+
+  const cardStyle: React.CSSProperties = {
+    display: 'block',
+    padding: '20px',
+    borderRadius: '14px',
+    background: 'rgba(255,255,255,0.1)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    color: '#fff',
+    textDecoration: 'none',
+  }
 
   return (
     <main
@@ -136,22 +150,11 @@ export default function AccountManagePage() {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: '14px',
+            marginBottom: '28px',
           }}
         >
-          {cards.map((card) => (
-            <a
-              key={card.href}
-              href={card.href}
-              style={{
-                display: 'block',
-                padding: '20px',
-                borderRadius: '14px',
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: '#fff',
-                textDecoration: 'none',
-              }}
-            >
+          {toolCards.map((card) => (
+            <a key={card.href} href={card.href} style={cardStyle}>
               <div style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>
                 {card.title}
               </div>
@@ -161,6 +164,49 @@ export default function AccountManagePage() {
             </a>
           ))}
         </div>
+
+        <section>
+          {pendingCount !== null && pendingCount > 0 && (
+            <div
+              style={{
+                marginBottom: '12px',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                background: 'rgba(232,93,76,0.16)',
+                border: '1px solid rgba(232,93,76,0.45)',
+                lineHeight: 1.6,
+                fontSize: '0.95rem',
+              }}
+            >
+              当前还有「{pendingCount}」条广告户待提交开白或更新开白状态，请尽快处理！
+            </div>
+          )}
+          {pendingCount === 0 && (
+            <div
+              style={{
+                marginBottom: '12px',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                lineHeight: 1.6,
+                fontSize: '0.95rem',
+                opacity: 0.85,
+              }}
+            >
+              当前没有待提交或审核中的广告户。
+            </div>
+          )}
+
+          <a href="/tools/ad-accounts" style={{ ...cardStyle, maxWidth: '360px' }}>
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>
+              广告户
+            </div>
+            <div style={{ opacity: 0.8, lineHeight: 1.5, fontSize: '0.95rem' }}>
+              查询并导出广告户资料
+            </div>
+          </a>
+        </section>
       </div>
     </main>
   )
