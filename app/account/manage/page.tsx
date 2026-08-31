@@ -198,14 +198,41 @@ export default function AccountManagePage() {
             </div>
           )}
 
-          <a href="/tools/ad-accounts" style={{ ...cardStyle, maxWidth: '360px' }}>
-            <div style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>
-              广告户
-            </div>
-            <div style={{ opacity: 0.8, lineHeight: 1.5, fontSize: '0.95rem' }}>
-              查询并导出广告户资料
-            </div>
-          </a>
+<div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '14px',
+            }}
+          >
+            <a href="/tools/ad-accounts" style={cardStyle}>
+              <div style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>
+                广告户
+              </div>
+              <div style={{ opacity: 0.8, lineHeight: 1.5, fontSize: '0.95rem' }}>
+                查询并导出广告户资料
+              </div>
+            </a>
+            
+            <a href="/tools/clients" style={cardStyle}>
+              <div style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>
+                客户
+              </div>
+              <div style={{ opacity: 0.8, lineHeight: 1.5, fontSize: '0.95rem' }}>
+                查看客户与支付主体
+              </div>
+            </a>
+
+            <a href="/tools/funds" style={cardStyle}>
+              <div style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>
+                资金流水
+              </div>
+              <div style={{ opacity: 0.8, lineHeight: 1.5, fontSize: '0.95rem' }}>
+                导入客户打款与代理充值记录
+              </div>
+            </a>
+
+          </div>
         </section>
       </div>
     </main>

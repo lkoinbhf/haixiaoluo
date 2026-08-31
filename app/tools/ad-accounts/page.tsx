@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+
 
 type AdAccount = {
   id: number
@@ -30,6 +31,8 @@ function todayDateString() {
 
 export default function AdAccountsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+    const initialClient = searchParams.get('client') || ''
   const [ready, setReady] = useState(false)
   const [rows, setRows] = useState<AdAccount[]>([])
   const [error, setError] = useState('')
@@ -40,15 +43,15 @@ export default function AdAccountsPage() {
 
   const [keyword, setKeyword] = useState('')
   const [port, setPort] = useState('')
-  const [status, setStatus] = useState('待提交')
-  const [client, setClient] = useState('')
+  const [status, setStatus] = useState(initialClient ? '' : '待提交')
+    const [client, setClient] = useState(initialClient)
   const [agency, setAgency] = useState('')
   const [bulkStatus, setBulkStatus] = useState('审核中')
   const [applied, setApplied] = useState({
     keyword: '',
     port: '',
-    status: '待提交',
-    client: '',
+    status: initialClient ? '' : '待提交',
+    client: initialClient,
     agency: '',
   })
 

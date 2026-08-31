@@ -117,15 +117,18 @@ export default function AdAccountsImportPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [importing, setImporting] = useState(false)
+  const [clientNames, setClientNames] = useState<string[]>([])
 
   useEffect(() => {
     const init = async () => {
-      const { data } = await supabase.auth.getSession()
-      if (!data.session) {
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (!sessionData.session) {
         router.replace('/account/login')
         return
       }
       setReady(true)
+      const { data: clientData } = await supabase.from('clients').select('name')
+      setClientNames((clientData || []).map((c: { name: string }) => c.name))
     }
     init()
   }, [router])
@@ -208,6 +211,11 @@ export default function AdAccountsImportPage() {
       const problems: string[] = []
       if (!row.ad_account_id) problems.push('缺少广告户ID')
       if (!row.ad_account_name) problems.push('缺少广告户名字')
+      if (!row.client_name) {
+        problems.push('缺少客户')
+      } else if (!clientNames.includes(row.client_name)) {
+        problems.push(`客户「${row.client_name}」还未添加`)
+      }
       if (!row.port) problems.push('缺少端口')
       else if (!PORTS.includes(row.port)) problems.push('端口不合法')
       if (!row.opened_on) problems.push('缺少开户日期')
@@ -360,8 +368,15 @@ export default function AdAccountsImportPage() {
             )}
 
             {missingHeaders.includes('客户') && (
-              <Field label="补全客户">
-                <input value={fillClient} onChange={(e) => setFillClient(e.target.value)} style={inputStyle} />
+              <Field label="补全客户（必须是已登记客户）">
+                <select value={fillClient} onChange={(e) => setFillClient(e.target.value)} style={inputStyle}>
+                  <option value="">请选择</option>
+                  {clientNames.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
               </Field>
             )}
             {missingHeaders.includes('代理') && (
