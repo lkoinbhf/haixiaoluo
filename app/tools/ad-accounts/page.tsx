@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -30,6 +30,30 @@ function todayDateString() {
 }
 
 export default function AdAccountsPage() {
+  return (
+    <Suspense
+      fallback={
+        <main
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+            color: '#fff',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+          }}
+        >
+          加载中…
+        </main>
+      }
+    >
+      <AdAccountsInner />
+    </Suspense>
+  )
+}
+
+function AdAccountsInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
     const initialClient = searchParams.get('client') || ''
