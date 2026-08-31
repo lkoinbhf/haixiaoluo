@@ -44,12 +44,21 @@ type ClientRow = {
   accountCount: number
 }
 
+type AgencyRow = {
+  id: number
+  name: string
+  payees: string[]
+  accountCount: number
+}
+
 export default function ClientsPage() {
   const router = useRouter()
   const [ready, setReady] = useState(false)
   const [rows, setRows] = useState<ClientRow[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<'clients' | 'agencies'>('clients')
+    const [agencyRows, setAgencyRows] = useState<AgencyRow[]>([])
 
   useEffect(() => {
     const init = async () => {
@@ -69,16 +78,24 @@ export default function ClientsPage() {
       setLoading(true)
       setError('')
 
-      const [{ data: clients, error: cErr }, { data: payers, error: pErr }, { data: accounts, error: aErr }] =
-        await Promise.all([
-          supabase.from('clients').select('id, name, delivery_type').order('id', { ascending: true }),
-          supabase.from('client_payers').select('client_id, payer_name'),
-          supabase.from('ad_accounts').select('client_name'),
-        ])
+      const [
+        { data: clients, error: cErr },
+        { data: payers, error: pErr },
+        { data: accounts, error: aErr },
+        { data: agencies, error: agErr },
+        { data: payees, error: peErr },
+      ] = await Promise.all([
+        supabase.from('clients').select('id, name, delivery_type').order('id', { ascending: true }),
+        supabase.from('client_payers').select('client_id, payer_name'),
+        supabase.from('ad_accounts').select('client_name, agency_name'),
+        supabase.from('agencies').select('id, name').order('id', { ascending: true }),
+        supabase.from('agency_payees').select('agency_id, payee_name'),
+      ])
 
-      if (cErr || pErr || aErr) {
-        setError(cErr?.message || pErr?.message || aErr?.message || '读取失败')
+      if (cErr || pErr || aErr || agErr || peErr) {
+        setError(cErr?.message || pErr?.message || aErr?.message || agErr?.message || peErr?.message || '读取失败')
         setRows([])
+        setAgencyRows([])
         setLoading(false)
         return
       }
@@ -102,6 +119,27 @@ export default function ClientsPage() {
           delivery_type: c.delivery_type,
           payers: payerMap[c.id] || [],
           accountCount: countMap[c.name] || 0,
+        }))
+      )
+
+      const payeeMap: Record<number, string[]> = {}
+      ;(payees || []).forEach((p: { agency_id: number; payee_name: string }) => {
+        if (!payeeMap[p.agency_id]) payeeMap[p.agency_id] = []
+        payeeMap[p.agency_id].push(p.payee_name)
+      })
+
+      const agencyCountMap: Record<string, number> = {}
+      ;(accounts || []).forEach((a: { agency_name: string | null }) => {
+        if (!a.agency_name) return
+        agencyCountMap[a.agency_name] = (agencyCountMap[a.agency_name] || 0) + 1
+      })
+
+      setAgencyRows(
+        (agencies || []).map((a: { id: number; name: string }) => ({
+          id: a.id,
+          name: a.name,
+          payees: payeeMap[a.id] || [],
+          accountCount: agencyCountMap[a.name] || 0,
         }))
       )
       setLoading(false)
@@ -132,8 +170,14 @@ export default function ClientsPage() {
           }}
         >
           <div>
-            <h1 style={{ margin: '0 0 6px', fontSize: '1.8rem' }}>客户</h1>
-            <p style={{ margin: 0, opacity: 0.75 }}>查看客户、投放类型、支付主体和对应广告户数量</p>
+          <h1 style={{ margin: '0 0 6px', fontSize: '1.8rem' }}>
+              {tab === 'clients' ? '客户' : '代理'}
+            </h1>
+            <p style={{ margin: 0, opacity: 0.75 }}>
+              {tab === 'clients'
+                ? '查看客户、投放类型、支付主体和对应广告户数量'
+                : '查看代理、收款主体和对应广告户数量'}
+            </p>
           </div>
           <a href="/account/manage" style={ghostBtn}>
             返回控制台
@@ -141,16 +185,42 @@ export default function ClientsPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
-          <span style={{ ...ghostBtn, background: 'rgba(232,93,76,0.25)', borderColor: 'rgba(232,93,76,0.5)' }}>
+          
+          <button
+            type="button"
+            onClick={() => setTab('clients')}
+            style={{
+              ...ghostBtn,
+              background: tab === 'clients' ? 'rgba(232,93,76,0.25)' : 'transparent',
+              borderColor: tab === 'clients' ? 'rgba(232,93,76,0.5)' : 'rgba(255,255,255,0.3)',
+              cursor: 'pointer',
+            }}
+          >
             客户
-          </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTab('agencies')}
+            style={{
+              ...ghostBtn,
+              background: tab === 'agencies' ? 'rgba(232,93,76,0.25)' : 'transparent',
+              borderColor: tab === 'agencies' ? 'rgba(232,93,76,0.5)' : 'rgba(255,255,255,0.3)',
+              cursor: 'pointer',
+            }}
+          >
+            代理
+          </button>
+
         </div>
 
         {error && <p style={{ color: '#ffb4a8' }}>加载失败：{error}</p>}
         {loading && <p style={{ opacity: 0.75 }}>读取中…</p>}
-        {!loading && rows.length === 0 && <p style={{ opacity: 0.75 }}>还没有客户记录。</p>}
+        {tab === 'clients' && !loading && rows.length === 0 && (
+          <p style={{ opacity: 0.75 }}>还没有客户记录。</p>
+        )}
 
-        {!loading && rows.length > 0 && (
+        {tab === 'clients' && !loading && rows.length > 0 && (
           <div
             style={{
               overflow: 'auto',
@@ -193,6 +263,45 @@ export default function ClientsPage() {
             </table>
           </div>
         )}
+
+
+        {tab === 'agencies' && !loading && agencyRows.length === 0 && (
+          <p style={{ opacity: 0.75 }}>还没有代理记录。</p>
+        )}
+        {tab === 'agencies' && !loading && agencyRows.length > 0 && (
+          <div
+            style={{
+              overflow: 'auto',
+              maxHeight: '480px',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '12px',
+              background: 'rgba(0,0,0,0.18)',
+            }}
+          >
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.92rem' }}>
+              <thead>
+                <tr>
+                  {['ID', '名字', '收款主体', '广告户数量'].map((h) => (
+                    <th key={h} style={th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {agencyRows.map((row) => (
+                  <tr key={row.id}>
+                    <td style={td}>{row.id}</td>
+                    <td style={td}>{row.name}</td>
+                    <td style={{ ...td, whiteSpace: 'normal' }}>
+                      <PayerList payers={row.payees} />
+                    </td>
+                    <td style={td}>{row.accountCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
       </div>
     </main>
   )

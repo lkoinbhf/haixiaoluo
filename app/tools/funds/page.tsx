@@ -16,6 +16,8 @@ type DraftRow = {
   counterparty_name: string
   client_id: number | null
   client_name: string
+  agency_id: number | null
+  agency_name: string
   error?: string
   exists?: boolean
 }
@@ -32,6 +34,8 @@ type FundRow = {
   counterparty_name: string | null
   client_id: number | null
   client_name: string
+  agency_id: number | null
+  agency_name: string
 }
 
 function parseCsv(text: string): string[][] {
@@ -131,14 +135,15 @@ export default function FundsPage() {
   const loadRows = async () => {
     setLoading(true)
     setError('')
-    const [{ data: funds, error: fErr }, { data: clientData }] = await Promise.all([
+    const [{ data: funds, error: fErr }, { data: clientData }, { data: agencyData }] = await Promise.all([
       supabase
         .from('fund_transactions')
         .select(
-          'id, transaction_id, occurred_at, description, amount, debit_net, credit_net, direction, counterparty_name, client_id'
+          'id, transaction_id, occurred_at, description, amount, debit_net, credit_net, direction, counterparty_name, client_id, agency_id'
         )
         .order('occurred_at', { ascending: false }),
       supabase.from('clients').select('id, name').order('name'),
+      supabase.from('agencies').select('id, name').order('name'),
     ])
 
     if (fErr) setError(fErr.message)
@@ -150,6 +155,16 @@ export default function FundsPage() {
         client_name: r.client_id ? nameMap.get(r.client_id) || '' : '',
       }))
     )
+
+    const agencyMap = new Map((agencyData || []).map((a: { id: number; name: string }) => [a.id, a.name]))
+    setRows(
+      ((funds || []) as Omit<FundRow, 'client_name' | 'agency_name'>[]).map((r) => ({
+        ...r,
+        client_name: r.client_id ? nameMap.get(r.client_id) || '' : '',
+        agency_name: r.agency_id ? agencyMap.get(r.agency_id) || '' : '',
+      }))
+    )
+
     setLoading(false)
   }
 
@@ -184,13 +199,17 @@ export default function FundsPage() {
       return
     }
 
-    const [{ data: payers }, { data: clientData }, { data: existing }] = await Promise.all([
-      supabase.from('client_payers').select('client_id, payer_name'),
-      supabase.from('clients').select('id, name'),
-      supabase.from('fund_transactions').select('transaction_id'),
-    ])
+    const [{ data: payers }, { data: clientData }, { data: existing }, { data: payees }, { data: agencyData }] =
+      await Promise.all([
+        supabase.from('client_payers').select('client_id, payer_name'),
+        supabase.from('clients').select('id, name'),
+        supabase.from('fund_transactions').select('transaction_id'),
+        supabase.from('agency_payees').select('agency_id, payee_name'),
+        supabase.from('agencies').select('id, name'),
+      ])
 
     const clientNameById = new Map((clientData || []).map((c: { id: number; name: string }) => [c.id, c.name]))
+    const agencyNameById = new Map((agencyData || []).map((a: { id: number; name: string }) => [a.id, a.name]))
     const existSet = new Set((existing || []).map((r: { transaction_id: string }) => r.transaction_id))
 
     const parsed: DraftRow[] = table.slice(1).map((cols) => {
@@ -213,6 +232,8 @@ export default function FundsPage() {
         counterparty_name,
         client_id: null,
         client_name: '',
+        agency_id: null,
+        agency_name: '',
       }
 
       const problems: string[] = []
@@ -238,9 +259,31 @@ export default function FundsPage() {
         }
       }
 
-      if (existSet.has(transaction_id)) {
+      if (dir === 'out') {
+        if (!counterparty_name) {
+          problems.push('描述里没有收款主体')
+        } else {
+          const hits = (payees || []).filter(
+            (p: { payee_name: string }) => p.payee_name === counterparty_name
+          )
+          if (hits.length === 0) {
+            problems.push(`收款主体「${counterparty_name}」未登记，代理未添加`)
+          } else if (hits.length > 1) {
+            problems.push(`收款主体「${counterparty_name}」对应多个代理`)
+          } else {
+            row.agency_id = hits[0].agency_id
+            row.agency_name = agencyNameById.get(hits[0].agency_id) || ''
+          }
+        }
+      }
+
+      if (!transaction_id) {
+        // 已有「缺少 Transaction Id」
+      } else if (existSet.has(transaction_id)) {
         row.exists = true
         problems.push('记录已存在，将跳过')
+      } else {
+        existSet.add(transaction_id)
       }
       if (problems.length) row.error = problems.join('；')
       return row
@@ -270,6 +313,7 @@ export default function FundsPage() {
       direction: r.direction,
       counterparty_name: r.counterparty_name || null,
       client_id: r.client_id,
+      agency_id: r.agency_id,
     }))
 
     const { data, error } = await supabase.from('fund_transactions').insert(payload).select('id')
@@ -402,8 +446,8 @@ export default function FundsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {drafts.map((row) => (
-                    <tr key={row.transaction_id}>
+                  {drafts.map((row, i) => (
+                    <tr key={`${row.transaction_id}-${i}`}>
                       <td style={td}>
                         {row.error ? (
                           <span style={{ color: '#ffb4a8' }}>{row.error}</span>
@@ -413,7 +457,7 @@ export default function FundsPage() {
                       </td>
                       <td style={td}>{row.occurred_at.replace('T', ' ').slice(0, 19)}</td>
                       <td style={td}>{row.direction === 'in' ? '收入' : row.direction === 'out' ? '支出' : '-'}</td>
-                      <td style={td}>{row.counterparty_name || '-'}</td>
+                      <td style={td}>{row.client_name || row.agency_name || '-'}</td>
                       <td style={td}>{row.client_name || '-'}</td>
                       <td style={td}>{row.direction === 'in' ? row.credit_net : row.debit_net}</td>
                     </tr>
@@ -483,7 +527,7 @@ export default function FundsPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
               <thead>
                 <tr>
-                  {['时间', '方向', '对方', '客户', '净额', '含手续费金额', 'Transaction Id'].map((h) => (
+                  {['时间', '方向', '对方', '客户/代理', '净额', '含手续费金额', 'Transaction Id'].map((h) => (
                     <th key={h} style={th}>{h}</th>
                   ))}
                 </tr>
@@ -494,7 +538,7 @@ export default function FundsPage() {
                     <td style={td}>{row.occurred_at.replace('T', ' ').slice(0, 19)}</td>
                     <td style={td}>{row.direction === 'in' ? '收入' : '支出'}</td>
                     <td style={td}>{row.counterparty_name || '-'}</td>
-                    <td style={td}>{row.client_name || '-'}</td>
+                    <td style={td}>{row.client_name || row.agency_name || '-'}</td>
                     <td style={td}>{row.direction === 'in' ? row.credit_net : row.debit_net}</td>
                     <td style={td}>{row.amount ?? '-'}</td>
                     <td style={td}>{row.transaction_id}</td>
