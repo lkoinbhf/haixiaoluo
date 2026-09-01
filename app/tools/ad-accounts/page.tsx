@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { downloadExcel } from '@/lib/readTable'
 import { supabase } from '@/lib/supabase'
 
 
@@ -64,11 +65,24 @@ function AdAccountsInner() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [confirmBulk, setConfirmBulk] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!exportOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [exportOpen])
 
   const [keyword, setKeyword] = useState('')
   const [port, setPort] = useState('')
   const [status, setStatus] = useState(initialClient ? '' : '待提交')
-    const [client, setClient] = useState(initialClient)
+  const [client, setClient] = useState(initialClient)
   const [agency, setAgency] = useState('')
   const [bulkStatus, setBulkStatus] = useState('审核中')
   const [applied, setApplied] = useState({
@@ -213,6 +227,32 @@ function AdAccountsInner() {
     URL.revokeObjectURL(url)
   }
 
+  const exportExcel = () => {
+    const header = [
+      '广告户ID',
+      '广告户名字',
+      '客户',
+      '代理',
+      '端口',
+      '开户日期',
+      '是否已提交开白',
+      '开白提交日期',
+      '开白状态',
+    ]
+    const body = filtered.map((row) => [
+      row.ad_account_id,
+      row.ad_account_name,
+      row.client_name || '',
+      row.agency_name || '',
+      row.port,
+      row.opened_on,
+      row.whitelist_submitted ? '是' : '否',
+      row.whitelist_submitted_on || '',
+      row.whitelist_status,
+    ])
+    downloadExcel(`ad-accounts-${new Date().toISOString().slice(0, 10)}.xlsx`, header, body)
+  }
+
   const requestBulkStatusUpdate = () => {
     if (filtered.length === 0 || !bulkStatus) {
       setError('当前没有可更新的记录')
@@ -353,8 +393,12 @@ function AdAccountsInner() {
             flexWrap: 'wrap',
             marginBottom: '12px',
             alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+
           <DarkSelect label="客户" value={client} onChange={setClient} options={clientOptions} />
           <DarkSelect label="代理" value={agency} onChange={setAgency} options={agencyOptions} />
           <DarkSelect label="端口" value={port} onChange={setPort} options={PORTS} />
@@ -383,24 +427,63 @@ function AdAccountsInner() {
           >
             查询
           </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={filtered.length === 0}
-            style={{
-              padding: '10px 14px',
-              borderRadius: '8px',
-              border: 'none',
-              background: '#e85d4c',
-              color: '#fff',
-              fontWeight: 600,
-              cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
-              opacity: filtered.length === 0 ? 0.6 : 1,
-            }}
-          >
-            导出 CSV（{filtered.length}）
-          </button>
+          <div ref={exportRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setExportOpen((v) => !v)}
+              disabled={filtered.length === 0}
+              style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: 'none',
+                background: '#e85d4c',
+                color: '#fff',
+                fontWeight: 600,
+                cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
+                opacity: filtered.length === 0 ? 0.6 : 1,
+              }}
+            >
+              导出（{filtered.length}） ▾
+            </button>
+            {exportOpen && filtered.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 'calc(100% + 6px)',
+                  minWidth: '140px',
+                  background: '#1b2744',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  zIndex: 20,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    exportCsv()
+                    setExportOpen(false)
+                  }}
+                  style={exportItem}
+                >
+                  导出 CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    exportExcel()
+                    setExportOpen(false)
+                  }}
+                  style={exportItem}
+                >
+                  导出 Excel
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {applied.status && applied.status != '成功' &&(
@@ -663,6 +746,17 @@ function DarkSelect({
       )}
     </div>
   )
+}
+
+const exportItem: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  textAlign: 'left',
+  padding: '10px 12px',
+  border: 'none',
+  background: 'transparent',
+  color: '#fff',
+  cursor: 'pointer',
 }
 
 const pageStyle: React.CSSProperties = {

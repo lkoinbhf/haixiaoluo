@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { fileToTable } from '@/lib/readTable'
 import { supabase } from '@/lib/supabase'
 
 type DraftRow = {
@@ -32,46 +33,6 @@ const OPTIONAL_HEADERS = [
   '开白状态',
 ] as const
 const KNOWN_HEADERS = [...REQUIRED_HEADERS, ...OPTIONAL_HEADERS]
-
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let cell = ''
-  let inQuotes = false
-  const src = text.replace(/^\uFEFF/, '')
-
-  for (let i = 0; i < src.length; i++) {
-    const ch = src[i]
-    const next = src[i + 1]
-    if (inQuotes) {
-      if (ch === '"' && next === '"') {
-        cell += '"'
-        i++
-      } else if (ch === '"') {
-        inQuotes = false
-      } else {
-        cell += ch
-      }
-    } else if (ch === '"') {
-      inQuotes = true
-    } else if (ch === ',') {
-      row.push(cell.trim())
-      cell = ''
-    } else if (ch === '\n') {
-      row.push(cell.trim())
-      rows.push(row)
-      row = []
-      cell = ''
-    } else if (ch !== '\r') {
-      cell += ch
-    }
-  }
-  if (cell.length > 0 || row.length > 0) {
-    row.push(cell.trim())
-    rows.push(row)
-  }
-  return rows.filter((r) => r.some((c) => c !== ''))
-}
 
 function normalizeHeader(value: string) {
   return value.replace(/\s/g, '').replace(/^="/, '').replace(/"$/, '')
@@ -139,10 +100,9 @@ export default function AdAccountsImportPage() {
     setFileError('')
     setDrafts([])
 
-    const text = await file.text()
-    const table = parseCsv(text)
+    const table = await fileToTable(file)
     if (table.length < 2) {
-      setFileError('CSV 内容为空，或缺少表头')
+      setFileError('文件内容为空，或缺少表头')
       setRawRows([])
       return
     }
@@ -331,7 +291,7 @@ export default function AdAccountsImportPage() {
           <input
             id="csv-file"
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={(e) => {
               const file = e.target.files?.[0]
               if (file) handleFile(file)
