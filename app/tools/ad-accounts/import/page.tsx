@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { fileToTable } from '@/lib/readTable'
 import { supabase } from '@/lib/supabase'
+import DarkSelect from '@/app/components/DarkSelect'
 
 type DraftRow = {
   ad_account_id: string
@@ -79,6 +80,7 @@ export default function AdAccountsImportPage() {
   const [error, setError] = useState('')
   const [importing, setImporting] = useState(false)
   const [clientNames, setClientNames] = useState<string[]>([])
+  const [agencyNames, setAgencyNames] = useState<string[]>([])
 
   useEffect(() => {
     const init = async () => {
@@ -88,8 +90,12 @@ export default function AdAccountsImportPage() {
         return
       }
       setReady(true)
-      const { data: clientData } = await supabase.from('clients').select('name')
+      const [{ data: clientData }, { data: agencyData }] = await Promise.all([
+        supabase.from('clients').select('name'),
+        supabase.from('agencies').select('name'),
+      ])
       setClientNames((clientData || []).map((c: { name: string }) => c.name))
+      setAgencyNames((agencyData || []).map((a: { name: string }) => a.name))
     }
     init()
   }, [router])
@@ -175,6 +181,11 @@ export default function AdAccountsImportPage() {
         problems.push('缺少客户')
       } else if (!clientNames.includes(row.client_name)) {
         problems.push(`客户「${row.client_name}」还未添加`)
+      }
+      if (!row.agency_name) {
+        problems.push('缺少代理')
+      } else if (!agencyNames.includes(row.agency_name)) {
+        problems.push(`代理「${row.agency_name}」还未添加`)
       }
       if (!row.port) problems.push('缺少端口')
       else if (!PORTS.includes(row.port)) problems.push('端口不合法')
@@ -329,31 +340,35 @@ export default function AdAccountsImportPage() {
 
             {missingHeaders.includes('客户') && (
               <Field label="补全客户（必须是已登记客户）">
-                <select value={fillClient} onChange={(e) => setFillClient(e.target.value)} style={inputStyle}>
-                  <option value="">请选择</option>
-                  {clientNames.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
+                <DarkSelect
+                  label="请选择客户"
+                  value={fillClient}
+                  onChange={setFillClient}
+                  options={clientNames}
+                  hideAllOption
+                />
               </Field>
             )}
             {missingHeaders.includes('代理') && (
-              <Field label="补全代理">
-                <input value={fillAgency} onChange={(e) => setFillAgency(e.target.value)} style={inputStyle} />
+              <Field label="补全代理（必须是已登记代理）">
+                <DarkSelect
+                  label="请选择代理"
+                  value={fillAgency}
+                  onChange={setFillAgency}
+                  options={agencyNames}
+                  hideAllOption
+                />
               </Field>
             )}
             {missingHeaders.includes('端口') && (
               <Field label="补全端口">
-                <select value={fillPort} onChange={(e) => setFillPort(e.target.value)} style={inputStyle}>
-                  <option value="">请选择</option>
-                  {PORTS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
+                <DarkSelect
+                  label="请选择端口"
+                  value={fillPort}
+                  onChange={setFillPort}
+                  options={PORTS}
+                  hideAllOption
+                />
               </Field>
             )}
             {missingHeaders.includes('开户日期') && (
@@ -368,13 +383,13 @@ export default function AdAccountsImportPage() {
             )}
             {missingHeaders.includes('开白状态') && (
               <Field label="补全开白状态">
-                <select value={fillStatus} onChange={(e) => setFillStatus(e.target.value)} style={inputStyle}>
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+                <DarkSelect
+                  label="开白状态"
+                  value={fillStatus}
+                  onChange={setFillStatus}
+                  options={STATUSES}
+                  hideAllOption
+                />
               </Field>
             )}
             {missingHeaders.includes('开白提交日期') && (

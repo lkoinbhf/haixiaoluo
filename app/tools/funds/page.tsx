@@ -141,7 +141,7 @@ export default function FundsPage() {
 
     const table = await fileToTable(file)
     if (table.length < 2) {
-      setError('CSV 内容为空，或缺少表头')
+      setError('文件内容为空，或缺少表头')
       return
     }
 
@@ -357,9 +357,9 @@ export default function FundsPage() {
           }}
         >
           <p style={{ margin: 0, opacity: 0.85, flex: 1, lineHeight: 1.6 }}>
-            点 + 上传 CSV。收入必须匹配已登记支付主体，重复记录会跳过。
+          点 + 上传 CSV 或 Excel。收入必须匹配已登记支付主体，支出必须匹配已登记收款主体，重复记录会跳过。
           </p>
-          <label htmlFor="fund-csv" title="选择 CSV 文件" style={plusBtn}>
+          <label htmlFor="fund-csv" title="选择 CSV 或 Excel 文件" style={plusBtn}>
             +
           </label>
           <input
