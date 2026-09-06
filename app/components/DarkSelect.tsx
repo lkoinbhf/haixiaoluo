@@ -8,12 +8,14 @@ export default function DarkSelect({
   onChange,
   options,
   hideAllOption = false,
+  minWidth = '140px'
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   options: string[]
   hideAllOption?: boolean
+  minWidth?: string
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -31,13 +33,15 @@ export default function DarkSelect({
   }, [open])
 
   return (
-    <div ref={rootRef} style={{ position: 'relative', minWidth: '140px' }}>
+    <div ref={rootRef} style={{ position: 'relative', minWidth, width: minWidth }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         style={triggerStyle}
       >
-        <span>{value || (hideAllOption ? label : `全部${label}`)}</span>
+        <span style={{ color: value ? '#e85d4c' : '#fff', fontWeight: value ? 600 : 400 }}>
+          {value || (hideAllOption ? label : `全部${label}`)}
+        </span>
         <span style={{ opacity: 0.7 }}>{open ? '▲' : '▼'}</span>
       </button>
       {open && (

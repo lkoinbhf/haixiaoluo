@@ -11,6 +11,7 @@ type DraftRow = {
   ad_account_name: string
   client_name: string
   agency_name: string
+  placement: string
   port: string
   opened_on: string
   whitelist_submitted: boolean
@@ -27,6 +28,7 @@ const REQUIRED_HEADERS = ['广告户ID', '广告户名字'] as const
 const OPTIONAL_HEADERS = [
   '客户',
   '代理',
+  '投放地',
   '端口',
   '开户日期',
   '是否已提交开白',
@@ -69,6 +71,7 @@ export default function AdAccountsImportPage() {
 
   const [fillClient, setFillClient] = useState('')
   const [fillAgency, setFillAgency] = useState('')
+  const [fillPlacement, setFillPlacement] = useState('')
   const [fillPort, setFillPort] = useState('')
   const [fillOpenedOn, setFillOpenedOn] = useState('')
   const [fillSubmitted, setFillSubmitted] = useState('')
@@ -140,6 +143,7 @@ export default function AdAccountsImportPage() {
     setRawRows(table.slice(1))
     setFillClient('')
     setFillAgency('')
+    setFillPlacement('')
     setFillPort('')
     setFillOpenedOn('')
     setFillSubmitted('')
@@ -167,6 +171,7 @@ export default function AdAccountsImportPage() {
         ad_account_name: get('广告户名字'),
         client_name: get('客户') || fillClient,
         agency_name: get('代理') || fillAgency,
+        placement: get('投放地') || fillPlacement,
         port: get('端口') || fillPort,
         opened_on,
         whitelist_status,
@@ -187,6 +192,7 @@ export default function AdAccountsImportPage() {
       } else if (!agencyNames.includes(row.agency_name)) {
         problems.push(`代理「${row.agency_name}」还未添加`)
       }
+      if (!row.placement) problems.push('缺少投放地')
       if (!row.port) problems.push('缺少端口')
       else if (!PORTS.includes(row.port)) problems.push('端口不合法')
       if (!row.opened_on) problems.push('缺少开户日期')
@@ -229,6 +235,7 @@ export default function AdAccountsImportPage() {
       ad_account_name: r.ad_account_name,
       client_name: r.client_name || null,
       agency_name: r.agency_name || null,
+      placement: r.placement || null,
       port: r.port,
       opened_on: r.opened_on,
       whitelist_submitted: r.whitelist_submitted,
@@ -349,6 +356,7 @@ export default function AdAccountsImportPage() {
                 />
               </Field>
             )}
+
             {missingHeaders.includes('代理') && (
               <Field label="补全代理（必须是已登记代理）">
                 <DarkSelect
@@ -360,6 +368,17 @@ export default function AdAccountsImportPage() {
                 />
               </Field>
             )}
+
+            {missingHeaders.includes('投放地') && (
+              <Field label="补全投放地（必填）">
+                <input
+                  value={fillPlacement}
+                  onChange={(e) => setFillPlacement(e.target.value)}
+                  style={inputStyle}
+                />
+              </Field>
+            )}
+
             {missingHeaders.includes('端口') && (
               <Field label="补全端口">
                 <DarkSelect
@@ -371,6 +390,7 @@ export default function AdAccountsImportPage() {
                 />
               </Field>
             )}
+
             {missingHeaders.includes('开户日期') && (
               <Field label="补全开户日期">
                 <input
@@ -381,6 +401,7 @@ export default function AdAccountsImportPage() {
                 />
               </Field>
             )}
+
             {missingHeaders.includes('开白状态') && (
               <Field label="补全开白状态">
                 <DarkSelect
@@ -392,6 +413,7 @@ export default function AdAccountsImportPage() {
                 />
               </Field>
             )}
+
             {missingHeaders.includes('开白提交日期') && (
               <Field label="补全开白提交日期（可空）">
                 <input
@@ -431,7 +453,7 @@ export default function AdAccountsImportPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                 <thead>
                   <tr>
-                    {['结果', '广告户ID', '广告户名字', '客户', '代理', '端口', '开户日期', '开白状态'].map(
+                    {['结果', '广告户ID', '广告户名字', '客户', '代理','投放地', '端口', '开户日期', '开白状态'].map(
                       (h) => (
                         <th key={h} style={th}>
                           {h}
@@ -454,6 +476,7 @@ export default function AdAccountsImportPage() {
                       <td style={td}>{row.ad_account_name}</td>
                       <td style={td}>{row.client_name || '-'}</td>
                       <td style={td}>{row.agency_name || '-'}</td>
+                      <td style={td}>{row.placement || '-'}</td>
                       <td style={td}>{row.port || '-'}</td>
                       <td style={td}>{row.opened_on || '-'}</td>
                       <td style={td}>{row.whitelist_status}</td>

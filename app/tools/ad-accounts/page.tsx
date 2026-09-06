@@ -13,6 +13,7 @@ type AdAccount = {
   ad_account_name: string
   client_name: string | null
   agency_name: string | null
+  placement: string | null
   port: string
   opened_on: string
   whitelist_submitted: boolean
@@ -84,6 +85,7 @@ function AdAccountsInner() {
   const [port, setPort] = useState('')
   const [status, setStatus] = useState(initialClient ? '' : '待提交')
   const [client, setClient] = useState(initialClient)
+  const [placement, setPlacement] = useState('')
   const [agency, setAgency] = useState('')
   const [bulkStatus, setBulkStatus] = useState('审核中')
   const [applied, setApplied] = useState({
@@ -91,6 +93,7 @@ function AdAccountsInner() {
     port: '',
     status: initialClient ? '' : '待提交',
     client: initialClient,
+    placement: '',
     agency: '',
   })
 
@@ -100,7 +103,7 @@ function AdAccountsInner() {
     const { data, error } = await supabase
       .from('ad_accounts')
       .select(
-        'id, ad_account_id, ad_account_name, client_name, agency_name, port, opened_on, whitelist_submitted, whitelist_submitted_on, whitelist_status'
+        'id, ad_account_id, ad_account_name, client_name, agency_name, placement, port, opened_on, whitelist_submitted, whitelist_submitted_on, whitelist_status'
       )
       .order('opened_on', { ascending: false })
 
@@ -136,6 +139,11 @@ function AdAccountsInner() {
       Array.from(new Set(rows.map((r) => r.agency_name).filter(Boolean) as string[])).sort(),
     [rows]
   )
+  const placementOptions = useMemo(
+    () =>
+      Array.from(new Set(rows.map((r) => r.placement).filter(Boolean) as string[])).sort(),
+    [rows]
+  )
 
   const bulkStatusOptions = useMemo(() => {
     if (applied.status === '待提交') return ['审核中']
@@ -163,6 +171,7 @@ function AdAccountsInner() {
       if (status && row.whitelist_status !== applied.status) return false
       if (client && row.client_name !== applied.client) return false
       if (agency && row.agency_name !== applied.agency) return false
+      if (applied.placement && row.placement !== applied.placement) return false
 
       if (tokens.length === 0) return true
 
@@ -176,6 +185,7 @@ function AdAccountsInner() {
         row.ad_account_name,
         row.client_name,
         row.agency_name,
+        row.placement,
       ]
         .filter(Boolean)
         .join(' ')
@@ -185,7 +195,7 @@ function AdAccountsInner() {
   }, [rows, applied])
 
   const applyQuery = () => {
-    setApplied({ keyword, port, status, client, agency })
+    setApplied({ keyword, port, status, client, agency, placement })
     setConfirmBulk(false)
   }
 
@@ -195,6 +205,7 @@ function AdAccountsInner() {
       '广告户名字',
       '客户',
       '代理',
+      '投放地',
       '端口',
       '开户日期',
       '是否已提交开白',
@@ -206,6 +217,7 @@ function AdAccountsInner() {
       row.ad_account_name,
       row.client_name || '',
       row.agency_name || '',
+      row.placement || '',
       row.port,
       row.opened_on,
       row.whitelist_submitted ? '是' : '否',
@@ -363,7 +375,7 @@ function AdAccountsInner() {
         >
           <div>
             <h1 style={{ margin: '0 0 6px', fontSize: '1.8rem' }}>广告户</h1>
-            <p style={{ margin: 0, opacity: 0.75 }}>查询与导出广告户基础资料</p>
+            <p style={{ margin: 0, opacity: 0.75 }}>查询与导出广告户基础资料，激活筛选条件来进行批量更改</p>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <a href="/tools/ad-accounts/import" style={ghostBtn}>
@@ -401,8 +413,18 @@ function AdAccountsInner() {
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
 
           <DarkSelect label="客户" value={client} onChange={setClient} options={clientOptions} />
+
           <DarkSelect label="代理" value={agency} onChange={setAgency} options={agencyOptions} />
+
+          <DarkSelect
+            label="投放地"
+            value={placement}
+            onChange={setPlacement}
+            options={placementOptions}
+          />
+
           <DarkSelect label="端口" value={port} onChange={setPort} options={PORTS} />
+
           <DarkSelect
             label="开白状态"
             value={status}
@@ -411,6 +433,7 @@ function AdAccountsInner() {
               setConfirmBulk(false)
             }}
             options={STATUSES}
+            minWidth="168px"
           />
 
           <button
@@ -428,6 +451,7 @@ function AdAccountsInner() {
           >
             查询
           </button>
+
           </div>
 
           <div ref={exportRef} style={{ position: 'relative' }}>
@@ -590,7 +614,7 @@ function AdAccountsInner() {
           <p style={{ opacity: 0.75 }}>没有符合条件的记录。</p>
         )}
 
-{!loading && filtered.length > 0 && (
+  {!loading && filtered.length > 0 && (
           <div
             style={{
               overflow: 'auto',
@@ -608,6 +632,7 @@ function AdAccountsInner() {
                     '广告户名字',
                     '客户',
                     '代理',
+                    '投放地',
                     '端口',
                     '开户日期',
                     '已提交开白',
@@ -639,6 +664,7 @@ function AdAccountsInner() {
                     <td style={td}>{row.ad_account_name}</td>
                     <td style={td}>{row.client_name || '-'}</td>
                     <td style={td}>{row.agency_name || '-'}</td>
+                    <td style={td}>{row.placement || '-'}</td>
                     <td style={td}>{row.port}</td>
                     <td style={td}>{row.opened_on}</td>
                     <td style={td}>{row.whitelist_submitted ? '是' : '否'}</td>
